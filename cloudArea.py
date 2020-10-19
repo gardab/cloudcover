@@ -5,6 +5,7 @@ import pyproj
 from pyproj import Transformer
 import shapely.wkt
 from shapely.geometry import Polygon
+import json
 
 def saveRaster(dataset,datasetPath,cols,rows,projection):
     rasterSet = gdal.GetDriverByName('GTiff').Create(datasetPath, cols, rows, 1, gdal.GDT_Float32)
@@ -18,6 +19,8 @@ def saveRaster(dataset,datasetPath,cols,rows,projection):
 folderPath = "geotiffs"
 folderContent = os.listdir(folderPath)
 listImages = []
+dataResults = {}
+dictInd = 1
 
 # Agrega el nombre de todas las imagenes tiff a una lista
 for i in folderContent:
@@ -28,7 +31,7 @@ for i in folderContent:
 
 # itera sobre las imagenes tiff encontradas en el folder 
 for img in listImages:
-    print(img)
+    #print(img)
     rasterImg = gdal.Open(img)
 
     sceneClassBand = np.array(rasterImg.GetRasterBand(14).ReadAsArray())
@@ -50,7 +53,7 @@ for img in listImages:
         dstProj = pyproj.Proj(proj='longlat', ellps='WGS84', datum='WGS84')
         transformer = Transformer.from_proj(srcProj, dstProj, always_xy=True)
         long, lat = transformer.transform(rasterCenter[0], rasterCenter[1])
-        print("Parcela esta en %0.4f N, %0.4f E" % (lat, long))
+        #print("Parcela esta en %0.4f N, %0.4f E" % (lat, long))
 
     # Extrae pixeles de nubes de la banda scene classification
     cloudLayer = np.zeros((rows, cols), dtype=int)
@@ -85,10 +88,27 @@ for img in listImages:
             areaF =  shapely.wkt.loads(geometry.ExportToWkt())
             clPoly = Polygon(areaF)
             clArea += clPoly.area
-    print("Imagen tiene %0.4f m2 de nubes" % clArea)
+    #print("Imagen tiene %0.4f m2 de nubes" % clArea)
     rasterWorldArea = rasterArea * pixelArea
     cloudPerc = clArea / rasterWorldArea
-    print("%0.6f de la imagen tiene nubes" % cloudPerc)
+    #print("%0.6f de la imagen tiene nubes" % cloudPerc)
+
+    # crea un diccionario con los datos obtenidos de la imagen actual
+    # y actualiza el general con todos los datos que se agregaran
+    # al archivo json
+    currImgData = {
+        img : {
+            "ubicacion" : {
+                "lat" : lat,
+                "long" : long
+                },
+            "nubes_m2" : clArea,
+            "nubes_porc" : cloudPerc
+            }
+        }
+    dataResults[dictInd] = currImgData
+    dictInd += 1
+    
 
     # cierra y elimina archivos generados temporalmente
     cloudContour = None
@@ -98,6 +118,7 @@ for img in listImages:
         file = os.path.join("temp", files)
         os.remove(file)
 
-   
-
-
+#print(dataResults)
+# crea el archivo json con todos los resultados obtenidos
+with open("prueba_luxelare.json", "w") as write_file:
+    json.dump(dataResults, write_file)
