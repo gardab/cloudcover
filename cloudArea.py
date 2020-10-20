@@ -20,6 +20,7 @@ folderPath = "geotiffs"
 folderContent = os.listdir(folderPath)
 listImages = []
 dataResults = {}
+genData = {}
 dictInd = 1
 
 # Agrega el nombre de todas las imagenes tiff a una lista
@@ -54,7 +55,17 @@ for img in listImages:
         transformer = Transformer.from_proj(srcProj, dstProj, always_xy=True)
         long, lat = transformer.transform(rasterCenter[0], rasterCenter[1])
         #print("Parcela esta en %0.4f N, %0.4f E" % (lat, long))
-
+    genData = {
+        "Mediciones" : {
+            "proyeccion" : rasterPrj,
+            "ubicacion_grados" : {
+                    "lat" : lat,
+                    "long" : long
+                    }
+            },
+        "Resultados" : {}
+        }
+    
     # Extrae pixeles de nubes de la banda scene classification
     cloudLayer = np.zeros((rows, cols), dtype=int)
     cloudLayer[sceneClassBand == 3] = 3
@@ -98,10 +109,6 @@ for img in listImages:
     # al archivo json
     currImgData = {
         img : {
-            "ubicacion" : {
-                "lat" : lat,
-                "long" : long
-                },
             "nubes_m2" : clArea,
             "nubes_porc" : cloudPerc
             }
@@ -109,7 +116,6 @@ for img in listImages:
     dataResults[dictInd] = currImgData
     dictInd += 1
     
-
     # cierra y elimina archivos generados temporalmente
     cloudContour = None
     dataCloud = None
@@ -120,5 +126,6 @@ for img in listImages:
 
 #print(dataResults)
 # crea el archivo json con todos los resultados obtenidos
+genData['Resultados'] = dataResults
 with open("prueba_luxelare.json", "w") as write_file:
-    json.dump(dataResults, write_file)
+    json.dump(genData, write_file)
